@@ -1,14 +1,1 @@
-#generador de contrasñeas
-import random
-def generar_contraseña(longitud=12):
-    caracteres = "qwertyuiopasdfghjklñzxcvbnmQWERTYUIOPASDFGHJKLÑZXCVBNM1234567890!@#$%&*()_+-=[];.,<>?/"
-    contraseña = "".join(random.choice(caracteres) for i in range(longitud)) 
-    return contraseña
-    #ejemplo de uso 
-    if __name__ == "__main__":
-        longitud = int(input("Introduce la longitud de la contrasaseña:"))
-        contraseña = generar_contraseña(longitud)
-        print("Tuc contraseña es:", contraseña)
-print(f"Contraseña generada con exito!:", generar_contraseña(20), " \nNo olvides guardarla en un lugar seguro.")
-input("Pulsa enter para cerrar el programa..")
-
+enter
