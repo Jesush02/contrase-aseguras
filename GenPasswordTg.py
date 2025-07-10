@@ -1,24 +1,20 @@
-import random
 import os
+import random
+from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    Updater,
-    CommandHandler,
-    CallbackContext,
-    ConversationHandler,
-    MessageHandler,
-    Filters,
-    CallbackQueryHandler,
+    ApplicationBuilder, CommandHandler, CallbackQueryHandler,
+    MessageHandler, filters, ConversationHandler, ContextTypes
 )
-from dotenv import load_dotenv
-
-# Carga el token desde .env
-load_dotenv()
-TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 # Estados de la conversación
 LENGTH, LABEL = range(2)
 
+# Cargar TOKEN del archivo .env
+load_dotenv()
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+
+# Función para generar contraseña
 def generar_contraseña(longitud=12):
     caracteres = (
         "qwertyuiopasdfghjklñzxcvbnm"
@@ -27,114 +23,103 @@ def generar_contraseña(longitud=12):
     )
     return "".join(random.choice(caracteres) for _ in range(longitud))
 
-def start(update: Update, context: CallbackContext):
+# /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🔐 Generar contraseña", callback_data="gen")],
         [InlineKeyboardButton("📜 Ver guardadas", callback_data="view")],
     ]
-    reply = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text("¡Bienvenido! Elige una opción:", reply_markup=reply)
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("¡Bienvenido! Elige una opción:", reply_markup=reply_markup)
 
-def button_handler(update: Update, context: CallbackContext):
+# Botones
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    query.answer()
+    await query.answer()
     if query.data == "gen":
         kb = [
-            [
-                InlineKeyboardButton("8", callback_data="8"),
-                InlineKeyboardButton("12", callback_data="12")
-            ],
-            [
-                InlineKeyboardButton("16", callback_data="16"),
-                InlineKeyboardButton("Otra", callback_data="other")
-            ],
+            [InlineKeyboardButton("8", callback_data="8"),
+             InlineKeyboardButton("12", callback_data="12")],
+            [InlineKeyboardButton("16", callback_data="16"),
+             InlineKeyboardButton("Otra", callback_data="other")]
         ]
-        query.edit_message_text(
-            "Selecciona la longitud deseada:", reply_markup=InlineKeyboardMarkup(kb)
-        )
+        await query.edit_message_text("Selecciona la longitud deseada:", reply_markup=InlineKeyboardMarkup(kb))
         return LENGTH
 
     elif query.data == "view":
-        # Lee y muestra el archivo de contraseñas
         if os.path.isfile("contraseñas.txt"):
             with open("contraseñas.txt", "r", encoding="utf-8") as f:
                 contenido = f.read().strip() or "– vacío –"
         else:
             contenido = "No se han guardado contraseñas aún."
-        query.edit_message_text(f"📜 Contraseñas guardadas:\n{contenido}")
+        await query.edit_message_text(f"📜 Contraseñas guardadas:\n{contenido}")
         return ConversationHandler.END
 
-def length_handler(update: Update, context: CallbackContext):
-    # Llega desde botón predefinido
+# Longitud por botón
+async def length_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    query.answer()
+    await query.answer()
     if query.data == "other":
-        query.edit_message_text("✏️ Escribe la longitud que quieres (un número):")
+        await query.edit_message_text("✏️ Escribe la longitud que quieres (número):")
         return LENGTH
     else:
         context.user_data["length"] = int(query.data)
-        query.edit_message_text("✏️ Ahora envía la etiqueta para la contraseña:")
+        await query.edit_message_text("✏️ Ahora escribe la etiqueta:")
         return LABEL
 
-def length_text_handler(update: Update, context: CallbackContext):
-    # Llega texto libre para longitud
+# Longitud por texto
+async def length_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if text.isdigit() and int(text) > 0:
         context.user_data["length"] = int(text)
-        update.message.reply_text("✏️ Ahora envía la etiqueta para la contraseña:")
+        await update.message.reply_text("✏️ Ahora escribe la etiqueta:")
         return LABEL
     else:
-        update.message.reply_text("❗️Por favor envía un número válido para la longitud:")
+        await update.message.reply_text("❗️Por favor envía un número válido:")
         return LENGTH
 
-def label_handler(update: Update, context: CallbackContext):
+# Etiqueta final
+async def label_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     etiqueta = update.message.text.strip()
     length = context.user_data.get("length", 12)
     pwd = generar_contraseña(length)
-    # Envía la contraseña formateada
-    update.message.reply_text(
+    await update.message.reply_text(
         f"🔑 Contraseña para *{etiqueta}*:\n`{pwd}`",
         parse_mode="Markdown"
     )
-    # Guarda en el archivo
     with open("contraseñas.txt", "a", encoding="utf-8") as f:
         f.write(f"{etiqueta}: {pwd}\n")
-    update.message.reply_text(
-        "🎉 Hecho. Contraseña guardada.\nUsa /start para otra acción."
-    )
+    await update.message.reply_text("🎉 Hecho. Usa /start para otra acción.")
     return ConversationHandler.END
 
-def cancel(update: Update, context: CallbackContext):
-    update.message.reply_text("❌ Operación cancelada. Usa /start para comenzar.")
+# Cancelar
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("❌ Operación cancelada. Usa /start para comenzar.")
     return ConversationHandler.END
 
+# Main
 def main():
-    updater = Updater(TOKEN, use_context=True)
-    dp = updater.dispatcher
+    app = ApplicationBuilder().token(TOKEN).build()
 
     conv = ConversationHandler(
-        entry_points=[
-            CommandHandler("start", start),
-            CallbackQueryHandler(button_handler)
-        ],
+        entry_points=[CommandHandler("start", start)],
         states={
             LENGTH: [
                 CallbackQueryHandler(length_handler),
-                MessageHandler(Filters.text & ~Filters.command, length_text_handler)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, length_text_handler),
             ],
             LABEL: [
-                MessageHandler(Filters.text & ~Filters.command, label_handler)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, label_handler)
             ],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
-        allow_reentry=True
     )
 
-    dp.add_handler(conv)
-    updater.start_polling()
-    print("Bot en ejecución…")
-    updater.idle()
+    app.add_handler(conv)
+    app.add_handler(CallbackQueryHandler(button_handler))
+
+    print("✅ Bot corriendo…")
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
-1
