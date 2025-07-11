@@ -7,14 +7,12 @@ from telegram.ext import (
     MessageHandler, filters, ConversationHandler, ContextTypes
 )
 
-# Estados de la conversación
+# Estados
 LENGTH, LABEL = range(2)
 
-# Cargar TOKEN del archivo .env
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-# Función para generar contraseña
 def generar_contraseña(longitud=12):
     caracteres = (
         "qwertyuiopasdfghjklñzxcvbnm"
@@ -23,7 +21,6 @@ def generar_contraseña(longitud=12):
     )
     return "".join(random.choice(caracteres) for _ in range(longitud))
 
-# /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🔐 Generar contraseña", callback_data="gen")],
@@ -32,20 +29,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("¡Bienvenido! Elige una opción:", reply_markup=reply_markup)
 
-# Botones iniciales
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     if query.data == "gen":
         kb = [
-            [InlineKeyboardButton("8", callback_data="8"),
-             InlineKeyboardButton("12", callback_data="12")],
-            [InlineKeyboardButton("16", callback_data="16"),
-             InlineKeyboardButton("Otra", callback_data="other")]
+            [InlineKeyboardButton("8", callback_data="8"), InlineKeyboardButton("12", callback_data="12")],
+            [InlineKeyboardButton("16", callback_data="16"), InlineKeyboardButton("Otra", callback_data="other")]
         ]
         await query.edit_message_text("Selecciona la longitud deseada:", reply_markup=InlineKeyboardMarkup(kb))
         return LENGTH
-
     elif query.data == "view":
         if os.path.isfile("contraseñas.txt"):
             with open("contraseñas.txt", "r", encoding="utf-8") as f:
@@ -55,7 +48,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"📜 Contraseñas guardadas:\n{contenido}")
         return ConversationHandler.END
 
-# Longitud seleccionada con botón
 async def length_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -67,7 +59,6 @@ async def length_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("✏️ Ahora escribe la etiqueta:")
         return LABEL
 
-# Longitud escrita por el usuario
 async def length_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if text.isdigit() and int(text) > 0:
@@ -78,26 +69,20 @@ async def length_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("❗️Por favor envía un número válido:")
         return LENGTH
 
-# Etiqueta para guardar contraseña
 async def label_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     etiqueta = update.message.text.strip()
     length = context.user_data.get("length", 12)
     pwd = generar_contraseña(length)
-    await update.message.reply_text(
-        f"🔑 Contraseña para *{etiqueta}*:\n`{pwd}`",
-        parse_mode="Markdown"
-    )
+    await update.message.reply_text(f"🔑 Contraseña para *{etiqueta}*:\n`{pwd}`", parse_mode="Markdown")
     with open("contraseñas.txt", "a", encoding="utf-8") as f:
         f.write(f"{etiqueta}: {pwd}\n")
     await update.message.reply_text("🎉 Hecho. Usa /start para otra acción.")
     return ConversationHandler.END
 
-# Cancelar
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ Operación cancelada. Usa /start para comenzar.")
     return ConversationHandler.END
 
-# Main corregido
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
@@ -115,10 +100,8 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
-    # Importante: este handler solo reacciona a los botones iniciales
-    app.add_handler(CallbackQueryHandler(button_handler, pattern="^(gen|view)$"))
-
     app.add_handler(conv)
+    app.add_handler(CallbackQueryHandler(button_handler, pattern="^(gen|view)$"))
 
     print("✅ Bot corriendo…")
     app.run_polling()
