@@ -32,7 +32,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("¡Bienvenido! Elige una opción:", reply_markup=reply_markup)
 
-# Botones
+# Botones iniciales
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -55,7 +55,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"📜 Contraseñas guardadas:\n{contenido}")
         return ConversationHandler.END
 
-# Longitud por botón
+# Longitud seleccionada con botón
 async def length_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -67,7 +67,7 @@ async def length_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("✏️ Ahora escribe la etiqueta:")
         return LABEL
 
-# Longitud por texto
+# Longitud escrita por el usuario
 async def length_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if text.isdigit() and int(text) > 0:
@@ -78,7 +78,7 @@ async def length_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("❗️Por favor envía un número válido:")
         return LENGTH
 
-# Etiqueta final
+# Etiqueta para guardar contraseña
 async def label_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     etiqueta = update.message.text.strip()
     length = context.user_data.get("length", 12)
@@ -97,7 +97,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ Operación cancelada. Usa /start para comenzar.")
     return ConversationHandler.END
 
-# Main
+# Main corregido
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
@@ -105,7 +105,7 @@ def main():
         entry_points=[CommandHandler("start", start)],
         states={
             LENGTH: [
-                CallbackQueryHandler(length_handler),
+                CallbackQueryHandler(length_handler, pattern="^(8|12|16|other)$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, length_text_handler),
             ],
             LABEL: [
@@ -115,8 +115,10 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
+    # Importante: este handler solo reacciona a los botones iniciales
+    app.add_handler(CallbackQueryHandler(button_handler, pattern="^(gen|view)$"))
+
     app.add_handler(conv)
-    app.add_handler(CallbackQueryHandler(button_handler))
 
     print("✅ Bot corriendo…")
     app.run_polling()
