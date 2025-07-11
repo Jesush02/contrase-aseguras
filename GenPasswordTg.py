@@ -10,7 +10,7 @@ from telegram.ext import (
 # Estados de la conversación
 LENGTH, LABEL = range(2)
 
-# Cargar TOKEN del entorno
+# Cargar TOKEN del archivo .env
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
@@ -31,13 +31,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("¡Bienvenido! Elige una opción:", reply_markup=reply_markup)
-    return ConversationHandler.END
 
-# Botones "gen" y "view"
+# Botones
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
     if query.data == "gen":
         kb = [
             [InlineKeyboardButton("8", callback_data="8"),
@@ -57,7 +55,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"📜 Contraseñas guardadas:\n{contenido}")
         return ConversationHandler.END
 
-# Selección de longitud (desde botón)
+# Longitud por botón
 async def length_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -69,7 +67,7 @@ async def length_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("✏️ Ahora escribe la etiqueta:")
         return LABEL
 
-# Longitud desde texto
+# Longitud por texto
 async def length_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if text.isdigit() and int(text) > 0:
@@ -80,7 +78,7 @@ async def length_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("❗️Por favor envía un número válido:")
         return LENGTH
 
-# Etiqueta final y resultado
+# Etiqueta final
 async def label_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     etiqueta = update.message.text.strip()
     length = context.user_data.get("length", 12)
@@ -94,20 +92,17 @@ async def label_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🎉 Hecho. Usa /start para otra acción.")
     return ConversationHandler.END
 
-# Cancelar comando
+# Cancelar
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ Operación cancelada. Usa /start para comenzar.")
     return ConversationHandler.END
 
-# Ejecutar bot
+# Main
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     conv = ConversationHandler(
-        entry_points=[
-            CommandHandler("start", start),
-            CallbackQueryHandler(button_handler, pattern="^(gen|view)$")
-        ],
+        entry_points=[CommandHandler("start", start)],
         states={
             LENGTH: [
                 CallbackQueryHandler(length_handler),
@@ -121,6 +116,7 @@ def main():
     )
 
     app.add_handler(conv)
+    app.add_handler(CallbackQueryHandler(button_handler))
 
     print("✅ Bot corriendo…")
     app.run_polling()
